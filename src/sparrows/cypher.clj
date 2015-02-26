@@ -6,7 +6,7 @@
     - sha512
     - 'www-form-urlencoded' encoding scheme: form-encode and form-decode
     - base64
-    - aes (may require installing unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
+    - aes (requires unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
   (:require [clojure.java.io :as io])
   (:import [org.apache.commons.codec.digest DigestUtils]
            [org.apache.commons.codec.net URLCodec]
@@ -174,8 +174,10 @@
 
 
 (defn aes-encrypt
-    "AES encryption. Returning a base64 or hex string. Write
+  "DEPRECATED: Use 'encrypt-aes' instead.
+  AES encryption. Returning a base64 or hex string. Write
   to `outpath` is specified."
+  {:deprecated "0.1.3"}
   [plaintext password & [{:keys [outpath as-hex]}]]
   (let [aout (aes-encrypt-binary plaintext password)
         str  (if as-hex (Hex/encodeHexString aout)  (Base64/encodeBase64URLSafeString aout))]
@@ -189,9 +191,11 @@
 
 
 (defn aes-decrypt
-  "Decrypt an encrypted text encrypted with `aes-encrypt`. May throw
+  "DEPRECATED: Use 'decrypt-aes' instead.
+  Decrypt an encrypted text encrypted with `aes-encrypt`. May throw
   exception on failure or password error. For HEX encoded input,
   set :as-hex to true."
+  {:deprecated "0.1.3"}
   [encrypted password & [{:keys [as-hex]}]]
   (let [encrypted (if as-hex (Hex/decodeHex (.toCharArray encrypted)) (Base64/decodeBase64 encrypted) )
         salt (byte-array SALT_LEN)
