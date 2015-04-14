@@ -46,3 +46,13 @@
                (clojure.java.io/file f)
                f)]
     (Files/probeContentType (.toPath file))))
+
+
+(defn register-shutdownhook
+  "Add func as a shutdownhook. This function will be executed when JVM
+  termination signal received."
+  [func & args]
+  (.addShutdownHook
+   (Runtime/getRuntime)
+   (Thread.
+    #(apply func args))))
