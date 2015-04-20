@@ -172,3 +172,14 @@
       (let [r (read-string n)]
         (if (number? r) r))
       (catch Exception e))))
+
+(defn dissoc-nil-val
+  "Remove all entries with nil val"
+  [m]
+  (loop [ks (keys m)
+         m m]
+    (if (seq ks)
+      (if-not (get m (first ks))
+        (recur (rest ks) (dissoc m (first ks)))
+        (recur (rest ks) m))
+      m)))
