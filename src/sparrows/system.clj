@@ -45,7 +45,8 @@
   (let [file (if (string? f)
                (clojure.java.io/file f)
                f)]
-    (Files/probeContentType (.toPath file))))
+    (when (and file (.exists file))
+      (Files/probeContentType (.toPath file)))))
 
 
 (defn register-shutdownhook
