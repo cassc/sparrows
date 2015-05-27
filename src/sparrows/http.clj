@@ -1,7 +1,9 @@
 (ns sparrows.http
-  (:require [clj-http.client :as client]
-            [taoensso.timbre :as timbre])
-  (:import [org.apache.commons.mail  HtmlEmail MultiPartEmail ] ))
+  (:require
+   [clj-http.client :as client]
+   [taoensso.timbre :as timbre])
+  (:import
+   [org.apache.commons.mail  HtmlEmail MultiPartEmail ]))
 
 
 (timbre/refer-timbre)

@@ -4,7 +4,4 @@
 
 (deftest a-test
   (testing "misc"
-    ((wrap-exception int) "This is an expected exception.")
-
-
-    ))
+    ((wrap-exception int (fn [e] (prn (str "This is an intended exception"  e)))) "This is an expected exception.")))

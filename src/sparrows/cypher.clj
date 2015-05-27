@@ -7,17 +7,21 @@
     - 'www-form-urlencoded' encoding scheme: form-encode and form-decode
     - base64
     - aes (requires unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
-  (:require [clojure.java.io :as io])
-  (:import [org.apache.commons.codec.digest DigestUtils]
-           [org.apache.commons.codec.net URLCodec]
-           [org.apache.commons.codec.binary Base64 Hex]
+  (:require
+   [clojure.java.io :as io])
+  (:import
+   [java.io InputStream OutputStream]
+   [java.util.zip GZIPOutputStream GZIPInputStream]
+   [org.apache.commons.codec.digest DigestUtils]
+   [org.apache.commons.codec.net URLCodec]
+   [org.apache.commons.codec.binary Base64 Hex]
 
-           [java.security AlgorithmParameters SecureRandom]
-           [javax.crypto BadPaddingException Cipher IllegalBlockSizeException SecretKey SecretKeyFactory]
-           [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
+   [java.security AlgorithmParameters SecureRandom]
+   [javax.crypto BadPaddingException Cipher IllegalBlockSizeException SecretKey SecretKeyFactory]
+   [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
 
-           [java.io ByteArrayInputStream ByteArrayOutputStream]
-           [third AESCrypt]))
+   [java.io ByteArrayInputStream ByteArrayOutputStream]
+   [third AESCrypt]))
 
 ; salt length
 (def SALT_LEN 20)
@@ -62,26 +66,115 @@
   [in]
   (DigestUtils/sha1Hex in))
 
+(defn url-encode
+  "URL encode input byte array as a utf8-encoded string, or if as-bytes? is true, as
+  byte-array"
+  [bs & {:keys [as-bytes?]}]
+  {:pre [(= (Class/forName "[B") (class bs))]}
+  (if as-bytes?
+    (.encode url-encoder bs)
+    (String. (url-encode bs :as-bytes? 't) "utf8")))
+
+
+(defn url-decode
+  "URL decode input byte array as a string, or if as-bytes? is true, as
+  byte-array"
+  [bs & {:keys [as-bytes?]}]
+  {:pre [(= (Class/forName "[B") (class bs))]}
+  (if as-bytes?
+    (.decode url-encoder bs)
+    (String. (url-decode bs :as-bytes? 't) "utf8")))
+
+
+
+;;; URL-encode/decode
 (defn form-encode
-  "Encodes a string into its URL safe form using utf8"
-  [str]
-  (.encode url-encoder str "utf8"))
+  "URL Encode a string as bytes(:as-bytes?) or utf8 encoded string"
+  [s & options]
+  (apply url-encode (.getBytes s "utf8") options))
 
 (defn form-decode
-  "Decodes a URL safe string into its original form using utf8"
-  [str]
-  (.decode url-encoder str "utf8"))
+  "URL decode a string as bytes(:as-bytes?) or utf8 encoded string"
+  [s & options]
+  (apply url-decode (.getBytes s "utf8") options))
 
 
-
-(defn base64-encode
+;;; BASE64 encode/decode
+(defn base64-encode-bytes
   "Returns a base64 encoded string. If `url-safe?` is not-nil,
    using a URL-safe variation of the base64 algorithm"
-  [str & {:keys [url-safe?]}]
-  (let [bs (if (string? str) (get-bytes str) str)]
-    (if url-safe?
-      (Base64/encodeBase64URLSafeString bs)
+  [bs & {:keys [url-safe? as-bytes?]
+         :or   {url-safe? true}}]
+  (if url-safe?
+    (if as-bytes?
+      (Base64/encodeBase64URLSafe bs)
+      (Base64/encodeBase64URLSafeString bs))
+    (if as-bytes?
+      (Base64/encodeBase64 bs)
       (Base64/encodeBase64String bs))))
+
+(defn base64-decode-bs
+  "Decode a base64 encoded string or bytes"
+  [bs & {:keys [as-bytes?]}]
+  (if as-bytes?
+    (Base64/decodeBase64 bs)
+    (String. (Base64/decodeBase64 bs))))
+
+(defprotocol Base64Codec
+  "Defines form-encode and form-decode methods for url-safe encode and
+  decode string/bytes/input streams. "
+  (-base64-encode [this options])
+  (-base64-decode [this options]))
+
+(extend (Class/forName "[B")
+  Base64Codec
+  {:-base64-encode (fn [s options] (apply base64-encode-bytes s options))
+   :-base64-decode (fn [s options] (apply base64-decode-bs s options))})
+
+(extend String
+  Base64Codec
+  {:-base64-encode (fn [s options] (apply base64-encode-bytes (.getBytes s "utf8") options))
+   :-base64-decode (fn [s options] (apply base64-decode-bs s options))})
+
+(extend InputStream
+  Base64Codec
+  {:-base64-encode (fn [in options] (-base64-encode (slurp (io/reader in)) options))
+   :-base64-decode (fn [in options] (-base64-decode (slurp (io/reader in)) options))})
+
+(extend nil
+  Base64Codec
+  {:-base64-encode (fn [s options] nil)
+   :-base64-decode (fn [s options] nil)})
+
+(defn base64-encode
+  "Available options: :url-safe? :as-bytes?"
+  [x & options]
+  (-base64-encode x options))
+
+(defn base64-decode
+  "Available options:as-bytes? "
+  [x & options]
+  (-base64-decode x options))
+
+
+;;; Compress and decompress strings
+(defn compress-string
+  "Compress a string using gzip, return the base64 encoded bytes"
+  [^String in]
+  (let [aos (ByteArrayOutputStream.)]
+    (with-open [out (GZIPOutputStream. aos)]
+      (.write out (get-bytes in)))
+    (let [bs (.toByteArray aos)]
+      (base64-encode bs ))))
+
+(defn decompress-string
+  "Decompress a string compressed by compress-string"
+  [^String in]
+  (let [input-bytes (base64-decode in :as-bytes? true)
+        ais         (ByteArrayInputStream. input-bytes)]
+    (with-open [in (GZIPInputStream. ais)]
+      (slurp (io/reader in)))))
+
 
 
 (defn digest
@@ -94,13 +187,6 @@
           "sha512" sha512
           "base64" base64-encode)]
     (f in)))
-
-(defn base64-decode
-  [str]
-  (let [bs (if (string? str) (get-bytes str) str)]
-    (String.
-     (Base64/decodeBase64 bs))))
-
 
 
 ;; AES encryption
