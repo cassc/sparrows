@@ -42,9 +42,9 @@
 (defn get-mime
   "Get MIME file type. Input could be a string or a File object"
   [f]
-  (let [file (if (string? f)
-               (clojure.java.io/file f)
-               f)]
+  (let [^java.io.File file (if (string? f)
+                             (clojure.java.io/file f)
+                             f)]
     (when (and file (.exists file))
       (Files/probeContentType (.toPath file)))))
 

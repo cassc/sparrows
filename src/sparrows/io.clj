@@ -7,9 +7,8 @@
             [clojure.edn :as e]
             [clojure.pprint :refer [pprint]])
   (:import [org.apache.commons.io FileUtils IOUtils]
-           [java.io ByteArrayOutputStream]
-           [java.util.zip GZIPInputStream GZIPOutputStream]
-))
+           [java.io ByteArrayOutputStream InputStream]
+           [java.util.zip GZIPInputStream GZIPOutputStream]))
 
 
 (defn create-dir
@@ -21,15 +20,15 @@ May throw IOException when write failed."
     (FileUtils/forceMkdir f)))
 
 (defn get-name
-  "Get the current `file` name from a uri"
-  [uri]
+  "Get the file name from a uri string"
+  [^String uri]
   (last (.split  uri file-separator)))
 
 
 (defn copy-dir
   "Target path including parent directories will be auto created."
-  [from to]
-  (FileUtils/copyDirectory (io/file from) (io/file to) (boolean 1)))
+  [^String from ^String to]
+  (FileUtils/copyDirectory (io/file from) (io/file to) true))
 
 
 (defn del-dir
@@ -42,31 +41,32 @@ May throw IOException when write failed."
 
 (defn pack-dir
   "Create 7z archive of a directory, using command like
-   `7z a -mhe=on -pmy_password archive.7z a_directory`"
-  [outdir dir & {:keys [password filename]}]
+   `7z a -mhe=on -pmy_password archive.7z a_directory`
+
+  `(pack-dir \"/tmp/pk\" \"./\" :password \"abc\" :filename \"abc\")`"
+  [^String outdir dir & {:keys [password filename]}]
   (or (command-exists? "7z")
       (throw (Exception. "Archive command not exists!")))
   (let [source (io/file dir)
         _ (create-dir outdir)
-        outdir (if (.endsWith outdir file-separator) outdir (str outdir file-separator))
-        out (str outdir (or filename (.getName source)) ".7z")]
-    (if (.exists (io/file out))
+        out (io/file outdir (str (or filename (.getName source)) ".7z"))]
+    (if (.exists out)
       (throw (Exception. (str "Target File " out " already exists!")))
       (assert
        (= 0
           (:exit
            (if password
-             (sh "7z" "a" "-mhe=on" (str "-p" password) out dir)
-             (sh "7z" "a" "-mhe=on" out dir))))))))
+             (sh "7z" "a" "-mhe=on" (str "-p" password) (.getCanonicalPath out) dir)
+             (sh "7z" "a" "-mhe=on" (.getCanonicalPath out) dir))))))))
 
 
 (defn str->gzipped-bytes
   "Convert string to gzipped bytes"
-  [str]
+  [^String str]
   (with-open [out (ByteArrayOutputStream.)
               gzip (GZIPOutputStream. out)]
     (do
-      (.write gzip (.getBytes str))
+      (.write gzip (.getBytes str "UTF-8"))
       (.finish gzip)
       (.toByteArray out))))
 
@@ -74,18 +74,18 @@ May throw IOException when write failed."
   "Convert intput string to gzipped file. The caller
    needs to manually delete the output file in case of
    exception."
-  [str out]
+  [^String str out]
   (with-open [out (io/output-stream out)
               gzip (GZIPOutputStream. out)]
     (do
-      (.write gzip (.getBytes str))
+      (.write gzip (.getBytes str "UTF-8"))
       (.finish gzip))))
 
 (defn gzipped-input-stream->str
-  [input-stream & [encoding]]
-  (with-open [out (ByteArrayOutputStream.)]
-    (IOUtils/copy (GZIPInputStream. input-stream) out)
-    (.close input-stream)
+  [^InputStream input-stream & [^String encoding]]
+  (with-open [out (ByteArrayOutputStream.)
+              is  input-stream]
+    (IOUtils/copy (GZIPInputStream. is) out)
     (.toString out (or encoding "utf8"))))
 
 

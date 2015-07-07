@@ -31,16 +31,16 @@
 
 (defn extract-text
   "Given a string source, returns the extracted text content"
-  [s]
+  [^String s]
   (let [source  (Source. s)]
     (.toString (TextExtractor. source))))
 
 
 (defn zip-str
   "convenience function to parse xml string as clojure datastructure, first seen at nakkaya.com later in clj.zip src"
-  [s]
+  [^String s]
   (zip/xml-zip
-   (xml/parse (java.io.ByteArrayInputStream. (.getBytes s)))))
+   (xml/parse (java.io.ByteArrayInputStream. (.getBytes s "UTF-8")))))
 
 
 
@@ -48,8 +48,8 @@
   "Convert epoch time in millis to string by wrapping around
    SimpleDateFormat. `timezone` should be like `GMT-8` or `GMT+8`.
    Note that if no `timezone` is specified, GMT+8 will be employed."
-  [time-millis & {:keys [format timezone] :or {format "yyyy/MM/dd HH:mm:ss" timezone "GMT+8"}}]
-  (let [d (Date. time-millis)
+  [time-millis & {:keys [format ^String timezone] :or {format "yyyy/MM/dd HH:mm:ss" timezone "GMT+8"}}]
+  (let [d (Date. ^long time-millis)
         sdf (doto (SimpleDateFormat. format)
               (.setTimeZone (TimeZone/getTimeZone timezone)))]
     (.format sdf d)))
@@ -99,7 +99,7 @@
 ;  application-label
 
 (defn- strip-apostrophe
-  [s]
+  [^String s]
   (if (string? s)
     (let [s (if (.startsWith s "'") (subs s 1) s)]
       (if (.endsWith s "'")

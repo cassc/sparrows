@@ -28,7 +28,7 @@
 ; ivbytes length
 (def IVBYTE_LEN 16)
 
-(defonce url-encoder
+(def ^{:tag URLCodec} url-encoder
   (URLCodec. "utf8"))
 
 (defn rand-str
@@ -41,13 +41,13 @@
 
 (defn get-bytes
   "Get bytes array using utf8"
-  [str]
+  ^bytes [^String str]
   (.getBytes str "utf8"))
 
 
 
 (defn md5
-  "Returns MD5 hash as string"
+  "Returns MD5 hash as string. Input can be string, input-stream or byte-array"
   [in & [{:keys [as-bytes]}]]
   (if as-bytes
     (DigestUtils/md5 in)
@@ -55,47 +55,49 @@
 
 
 (defn sha512
+  "Input can be string, input-stream or byte-array"
   [in]
   (DigestUtils/sha512Hex in))
 
 (defn sha256
+  "Input can be string, input-stream or byte-array"
   [in]
   (DigestUtils/sha256Hex in))
 
 (defn sha1
+  "Input can be string, input-stream or byte-array"
   [in]
   (DigestUtils/sha1Hex in))
 
 (defn url-encode
   "URL encode input byte array as a utf8-encoded string, or if as-bytes? is true, as
   byte-array"
-  [bs & {:keys [as-bytes?]}]
-  {:pre [(= (Class/forName "[B") (class bs))]}
+  [^bytes bs & {:keys [as-bytes?]}]
   (if as-bytes?
     (.encode url-encoder bs)
-    (String. (url-encode bs :as-bytes? 't) "utf8")))
+    (String. ^bytes (url-encode bs :as-bytes? 't) "utf8")))
 
 
 (defn url-decode
   "URL decode input byte array as a string, or if as-bytes? is true, as
   byte-array"
-  [bs & {:keys [as-bytes?]}]
+  [^bytes bs & {:keys [as-bytes?]}]
   {:pre [(= (Class/forName "[B") (class bs))]}
   (if as-bytes?
     (.decode url-encoder bs)
-    (String. (url-decode bs :as-bytes? 't) "utf8")))
+    (String. ^bytes (url-decode bs :as-bytes? 't) "utf8")))
 
 
 
 ;;; URL-encode/decode
 (defn form-encode
   "URL Encode a string as bytes(:as-bytes?) or utf8 encoded string"
-  [s & options]
+  [^String s & options]
   (apply url-encode (.getBytes s "utf8") options))
 
 (defn form-decode
   "URL decode a string as bytes(:as-bytes?) or utf8 encoded string"
-  [s & options]
+  [^String s & options]
   (apply url-decode (.getBytes s "utf8") options))
 
 
@@ -115,7 +117,7 @@
 
 (defn base64-decode-bs
   "Decode a base64 encoded string or bytes"
-  [bs & {:keys [as-bytes?]}]
+  [^bytes bs & {:keys [as-bytes?]}]
   (if as-bytes?
     (Base64/decodeBase64 bs)
     (String. (Base64/decodeBase64 bs))))
@@ -133,7 +135,7 @@
 
 (extend String
   Base64Codec
-  {:-base64-encode (fn [s options] (apply base64-encode-bytes (.getBytes s "utf8") options))
+  {:-base64-encode (fn [^String s options] (apply base64-encode-bytes (.getBytes s "utf8") options))
    :-base64-decode (fn [s options] (apply base64-decode-bs s options))})
 
 (extend InputStream
@@ -207,7 +209,7 @@
 
 
 (defn- get-spec
-  [password salt]
+  [^String password salt]
   (PBEKeySpec. (.toCharArray password)
                salt
                65536
@@ -244,8 +246,8 @@
 
 (defn aes-encrypt-binary
   "Encrypt plaintext with the password, returns a byte-array. May throw exception on failure"
-  [plaintext password]
-  (let [[salt iv-bytes encrypted] (aes-encrypt-intern plaintext password)
+  [^String plaintext ^String password]
+  (let [[salt iv-bytes ^String encrypted] (aes-encrypt-intern plaintext password)
         encrypted (.getBytes encrypted "utf8")
         ;; salt length: SALT_LEN, iv-bytes length: IVBYTE_LEN
         ;; assert the length here
@@ -295,7 +297,8 @@
 
 ;; Wraps AESCrypt class.
 
-(defn encrypt-aes [plaintext password]
+(defn encrypt-aes
+  [^String plaintext ^String password]
   "Encrypt plaintext with the password"
   (with-open [in  (ByteArrayInputStream. (.getBytes plaintext "utf-8"))
               out (ByteArrayOutputStream.)]
@@ -305,7 +308,9 @@
      (.toByteArray out))))
 
 
-(defn decrypt-aes [encrypted password]
+(defn decrypt-aes
+  "Decrypt an `encrypted` string or byte-array using the provided `password`"
+  [encrypted ^String password]
   (let [in-bytes (Base64/decodeBase64 encrypted)
         size     (count in-bytes)]
     (with-open [in  (ByteArrayInputStream. in-bytes)

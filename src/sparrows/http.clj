@@ -24,6 +24,7 @@
 
 (defn get-status-by-exception
   "Get http status code from an exception of client/request."
+  {:deprecated "0.1.8"}
   [e]
   (try
     (:status (:object (.getData e)))
@@ -60,7 +61,7 @@
   http://commons.apache.org/proper/commons-email/userguide.html for
   examples. Note that to is a collection of recipients"
   [{:keys [from to subject html text attachment smtp-host smtp-port smtp-user smtp-pass]}]
-  (let [base (if attachment (MultiPartEmail.) (HtmlEmail.) )
+  (let [base (HtmlEmail.)
         base (doto base
                  (.setHostName smtp-host)
                (.setSmtpPort smtp-port)
