@@ -57,3 +57,9 @@
    (Runtime/getRuntime)
    (Thread.
     #(apply func args))))
+
+
+(defn num-of-processers
+  "Get number of `availableProcessors`"
+  []
+  (.availableProcessors (Runtime/getRuntime)))
