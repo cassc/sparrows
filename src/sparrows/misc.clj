@@ -1,17 +1,14 @@
 (ns sparrows.misc
-  (:require
-   [clojure.zip :as zip]
-   [clojure.xml :as xml]
-   [taoensso.timbre :as timbre]
-   [clojure.java.shell :refer [sh]]
-   [clojure.string :as s]
-
-   [sparrows.system :refer [command-exists?]])
-  (:import
-   [net.htmlparser.jericho Source TextExtractor]
-   [java.util TimeZone Date]
-   [java.text SimpleDateFormat]
-   [java.io BufferedReader StringReader]))
+  (:require [clojure
+             [string :as s]
+             [xml :as xml]
+             [zip :as zip]]
+            [clojure.java.shell :refer [sh]]
+            [sparrows.system :refer [command-exists?]]
+            [taoensso.timbre :as timbre])
+  (:import [java.io BufferedReader StringReader]
+           java.text.SimpleDateFormat
+           [java.util Date TimeZone UUID]))
 
 (timbre/refer-timbre)
 
@@ -28,13 +25,6 @@
         (warn e (.getMessage e))
         (if call-back
           (apply call-back e args))))))
-
-(defn extract-text
-  "Given a string source, returns the extracted text content"
-  [^String s]
-  (let [source  (Source. s)]
-    (.toString (TextExtractor. source))))
-
 
 (defn zip-str
   "convenience function to parse xml string as clojure datastructure, first seen at nakkaya.com later in clj.zip src"
@@ -175,6 +165,7 @@
 
 (defn dissoc-nil-val
   "Remove all entries with nil val"
+  {:deprecated "0.2.1"}
   [m]
   (loop [ks (keys m)
          m m]
@@ -183,3 +174,90 @@
         (recur (rest ks) (dissoc m (first ks)))
         (recur (rest ks) m))
       m)))
+
+(defn dissoc-empty-val
+  "Remove all entries with nil or empty val"
+  [m]
+  (loop [ks (keys m)
+         m m]
+    (if (seq ks)
+      (let [v (get m (first ks))]
+        (if (cond
+              (string? v)          (lowercase-trim v)
+              (instance? Number v) v
+              (sequential? v)      (seq v)
+              :else                v)
+          (recur (rest ks) m)
+          (recur (rest ks) (dissoc m (first ks)))))
+      m)))
+
+(defn uuid
+  "Return uuid without hyphens"
+  []
+  (.. UUID randomUUID toString (replace "-" "")))
+
+
+(defn now-millis
+  []
+  (System/currentTimeMillis))
+
+(defn now-nanos
+  []
+  (System/nanoTime))
+
+
+(defn super-of?
+  "Determines if `p` is a super class/interface of `c`.
+
+  Usage
+  `(super-of? Throwable (.getClass e#))`"
+  [p c]
+  (.isAssignableFrom ^Class p ^Class c))
+
+
+(defn wrap-time
+  "Returns a wrapped function of the original, logs execution time of
+  this function if :enable-time-logging is enabled. "
+  ([f]
+   (wrap-time f f))
+  ([key f]
+   (fn [& args]
+     (let [start (System/currentTimeMillis)]
+       (try
+         (apply f args)
+         (finally
+           (info "Runtime of" (-> #'key meta :name) (- (System/currentTimeMillis) start))))))))
+
+(defmacro wrap-nil-on-error
+  "Eval (list* func args) in a try catch block. If any error is caught,
+  returns nil"
+  [& body]
+  `(try
+     ~@body
+     (catch Throwable e#
+       (warn e# "error ignored")
+       nil)))
+
+(defn- int-entry-to-map
+  [m [k v]]
+  (assoc m k (or (str->num v) v)))
+
+(defn maybe-vals->int
+  "Convert all values in a map to number if possible."
+  [m]
+  (reduce int-entry-to-map {} m))
+
+(defn rand-ints
+  "Return a string with `n` random digits"
+  [n]
+  (reduce str (repeatedly n #(rand-int 10))))
+
+(defn num=
+  "Returns true if every argument is approximately equal. Converts string to number automatically."
+  [& args]
+  (try
+    (let [[f & rs] (map str->num args)]
+      (every? #(< (Math/abs %) 0.00001) (map #(- f %) rs)))
+    (catch Exception e
+      (debug (.getMessage e))
+      nil)))

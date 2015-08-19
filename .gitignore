@@ -1,6 +1,7 @@
 pom.xml
 /doc
-*.mp3
+*.iml
+/.idea
 config.edn
 /target
 /lib

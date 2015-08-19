@@ -7,21 +7,20 @@
     - 'www-form-urlencoded' encoding scheme: form-encode and form-decode
     - base64
     - aes (requires unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
-  (:require
-   [clojure.java.io :as io])
-  (:import
-   [java.io InputStream OutputStream]
-   [java.util.zip GZIPOutputStream GZIPInputStream]
-   [org.apache.commons.codec.digest DigestUtils]
-   [org.apache.commons.codec.net URLCodec]
-   [org.apache.commons.codec.binary Base64 Hex]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as s])
+  (:import [java.io ByteArrayInputStream ByteArrayOutputStream File InputStream]
+           [clojure.lang Reflector]
+           java.security.SecureRandom
+           [java.util.zip GZIPInputStream GZIPOutputStream]
+           [javax.crypto Cipher SecretKeyFactory]
+           [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
+           [org.apache.commons.codec.binary Base64 Hex]
+           org.apache.commons.codec.digest.DigestUtils
+           org.apache.commons.codec.net.URLCodec
+           third.AESCrypt))
 
-   [java.security AlgorithmParameters SecureRandom]
-   [javax.crypto BadPaddingException Cipher IllegalBlockSizeException SecretKey SecretKeyFactory]
-   [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
-
-   [java.io ByteArrayInputStream ByteArrayOutputStream]
-   [third AESCrypt]))
+(set! *warn-on-reflection* nil)
 
 ; salt length
 (def SALT_LEN 20)
@@ -44,30 +43,25 @@
   ^bytes [^String str]
   (.getBytes str "utf8"))
 
+(defn digest-with
+  "Digest with the specified algorithm. If `as-bytes?` is true, returns a byte array intead of string.
+  Supported algorithms: md2, md5, sha1, sha256, sha512"
+  [alg in & {:keys [as-bytes?]}]
+  (let [alg (s/lower-case (name alg))
+        m (if as-bytes? alg (str alg "Hex"))
+        file? (isa? (class in) File)
+        in (if file? (io/input-stream in) in)
+        stream? (or file? (isa? (class in) InputStream))]
+    (if stream?
+      (with-open [in in]
+        (Reflector/invokeStaticMethod DigestUtils m (into-array [in])))
+      (Reflector/invokeStaticMethod DigestUtils m (into-array [in])))))
 
-
-(defn md5
-  "Returns MD5 hash as string. Input can be string, input-stream or byte-array"
-  [in & [{:keys [as-bytes]}]]
-  (if as-bytes
-    (DigestUtils/md5 in)
-    (DigestUtils/md5Hex in)))
-
-
-(defn sha512
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha512Hex in))
-
-(defn sha256
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha256Hex in))
-
-(defn sha1
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha1Hex in))
+(defn md2 [& args] (apply digest-with :md2 args))
+(defn md5 [& args] (apply digest-with :md5 args))
+(defn sha1 [& args] (apply digest-with :sha1 args))
+(defn sha256 [& args] (apply digest-with :sha256 args))
+(defn sha512 [& args] (apply digest-with :sha512 args))
 
 (defn url-encode
   "URL encode input byte array as a utf8-encoded string, or if as-bytes? is true, as
@@ -136,12 +130,19 @@
 (extend String
   Base64Codec
   {:-base64-encode (fn [^String s options] (apply base64-encode-bytes (.getBytes s "utf8") options))
-   :-base64-decode (fn [s options] (apply base64-decode-bs s options))})
+   :-base64-decode (fn [s options] (apply base64-decode-bs (.getBytes s "utf8") options))})
 
 (extend InputStream
   Base64Codec
-  {:-base64-encode (fn [in options] (-base64-encode (slurp (io/reader in)) options))
-   :-base64-decode (fn [in options] (-base64-decode (slurp (io/reader in)) options))})
+  {:-base64-encode (fn [in options] (with-open [in in]
+                                      (-base64-encode (slurp (io/reader in)) options)))
+   :-base64-decode (fn [in options] (with-open [in in]
+                                      (-base64-decode (slurp (io/reader in)) options)))})
+
+(extend File
+  Base64Codec
+  {:-base64-encode (fn [in options] (-base64-encode (io/input-stream in) options))
+   :-base64-decode (fn [in options] (-base64-decode (io/input-stream in) options))})
 
 (extend nil
   Base64Codec
@@ -177,7 +178,9 @@
     (with-open [in (GZIPInputStream. ais)]
       (slurp (io/reader in)))))
 
-
+(def base64
+  "Base64 encode a string or byte array. Available options: :url-safe? :as-bytes?"
+  base64-encode)
 
 (defn digest
   [alg in]
@@ -298,8 +301,8 @@
 ;; Wraps AESCrypt class.
 
 (defn encrypt-aes
-  [^String plaintext ^String password]
   "Encrypt plaintext with the password"
+  [^String plaintext ^String password]
   (with-open [in  (ByteArrayInputStream. (.getBytes plaintext "utf-8"))
               out (ByteArrayOutputStream.)]
     (doto (AESCrypt. password)
@@ -319,3 +322,21 @@
         (.decrypt size in out))
       (String.
        (.toByteArray out) "utf-8"))))
+
+(defn- ->bytes
+  [b]
+  (cond 
+    (= (class b) String) (get-bytes b)
+    (= (class b) (Class/forName "[B")) b))
+
+(defn slow=
+  "Slow equals compare. Takes string or byte array as arugments.
+
+  see https://crackstation.net/hashing-security.htm#javasourcecode"
+  [sa sb]
+  (let [sa (->bytes sa)
+        sb (->bytes sb)]
+    (zero?
+     (reduce #(bit-or % %2)
+             (bit-xor (count sa) (count sb))
+             (map #(bit-xor %1 %2) sa sb)))))
