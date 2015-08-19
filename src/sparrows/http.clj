@@ -59,13 +59,16 @@
   "Send email. Note that target is a seq of email
   addresses. `attachment` is an instance of EmailAttachment. Refer to
   http://commons.apache.org/proper/commons-email/userguide.html for
-  examples. Note that to is a collection of recipients"
-  [{:keys [from to subject html text attachment smtp-host smtp-port smtp-user smtp-pass]}]
+  examples. Note that to is a collection of recipients
+
+  For self-signed mail servers, set the value to `false` for `:ssl?`."
+  [{:keys [from to subject html text attachment smtp-host smtp-port smtp-user smtp-pass ssl?]
+    :or   {ssl? true}}]
   (let [base (HtmlEmail.)
         base (doto base
                  (.setHostName smtp-host)
                (.setSmtpPort smtp-port)
-               (.setSSL true)
+               (.setSSL (if ssl? true false))
                (.setFrom from)
                (.setSubject subject)
                (.setAuthentication smtp-user smtp-pass)
@@ -79,3 +82,15 @@
     (doseq [person to]
       (.addTo base person))
     (.send base)))
+
+
+(comment
+  (send-email {:from "Services@chipsea.com"
+               :to ["ca7@qq.com"]
+               :subject "中文boring"
+               :text "中文body"
+               :smtp-host "smtp.chipsea.com"
+               :smtp-port 25
+               :smtp-user "Services@chipsea.com"
+               :ssl? false})
+  )
