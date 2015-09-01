@@ -1,4 +1,4 @@
-(defproject sparrows "0.1.9"
+(defproject sparrows "0.2.0"
   :description "A utility library providing encryption/decryption, io utils and more."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

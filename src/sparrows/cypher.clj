@@ -136,7 +136,7 @@
 (extend String
   Base64Codec
   {:-base64-encode (fn [^String s options] (apply base64-encode-bytes (.getBytes s "utf8") options))
-   :-base64-decode (fn [s options] (apply base64-decode-bs s options))})
+   :-base64-decode (fn [s options] (apply base64-decode-bs (.getBytes s "utf8") options))})
 
 (extend InputStream
   Base64Codec
