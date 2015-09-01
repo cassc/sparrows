@@ -11,5 +11,7 @@
                  [com.taoensso/timbre "3.1.6"]
                  [org.apache.commons/commons-email "1.2"]]
   :omit-source false
+  ;;:javac-options ["-target" "1.7" "-source" "1.7"] ;;  "-Xlint:-options"
+  :jvm-opts ["-Dfile.encoding=UTF-8"]
   :global-vars {*warn-on-reflection* true}
   :java-source-paths ["src/java"])
