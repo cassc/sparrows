@@ -21,9 +21,16 @@ Include the following in `project.clj`,
 [sparrows "0.1.3"]
 ```
 
+## TODO
+
+* Update encryption
+* Update dissoc-empty-vals, date-time utils, md5sum should auto close opened file
+
 ## License
 
 Copyright © 2015 CL
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
+
+

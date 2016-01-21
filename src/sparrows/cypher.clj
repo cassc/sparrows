@@ -7,21 +7,16 @@
     - 'www-form-urlencoded' encoding scheme: form-encode and form-decode
     - base64
     - aes (requires unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
-  (:require
-   [clojure.java.io :as io])
-  (:import
-   [java.io InputStream OutputStream]
-   [java.util.zip GZIPOutputStream GZIPInputStream]
-   [org.apache.commons.codec.digest DigestUtils]
-   [org.apache.commons.codec.net URLCodec]
-   [org.apache.commons.codec.binary Base64 Hex]
-
-   [java.security AlgorithmParameters SecureRandom]
-   [javax.crypto BadPaddingException Cipher IllegalBlockSizeException SecretKey SecretKeyFactory]
-   [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
-
-   [java.io ByteArrayInputStream ByteArrayOutputStream]
-   [third AESCrypt]))
+  (:require [clojure.java.io :as io])
+  (:import [java.io ByteArrayInputStream ByteArrayOutputStream File InputStream]
+           java.security.SecureRandom
+           [java.util.zip GZIPInputStream GZIPOutputStream]
+           [javax.crypto Cipher SecretKeyFactory]
+           [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
+           [org.apache.commons.codec.binary Base64 Hex]
+           org.apache.commons.codec.digest.DigestUtils
+           org.apache.commons.codec.net.URLCodec
+           third.AESCrypt))
 
 ; salt length
 (def SALT_LEN 20)
@@ -44,14 +39,40 @@
   ^bytes [^String str]
   (.getBytes str "utf8"))
 
+(defprotocol Digestable
+  "Wrapper for apache DigestUtils md5, sha1, sha256, sha512 functions.
 
+  Input can be string, input-stream or byte-array.  
+  Returns string, or a byte array if `as-bytes` is true."
+  (md5 [in])
+  (sha1 [this])
+  (sha256 [this])
+  (sha512 [this]))
 
-(defn md5
-  "Returns MD5 hash as string. Input can be string, input-stream or byte-array"
-  [in & [{:keys [as-bytes]}]]
-  (if as-bytes
-    (DigestUtils/md5 in)
-    (DigestUtils/md5Hex in)))
+;; (extend-protocol Digestable
+;;   (Class/forName "[B")
+;;   (md5 ([bs]
+;;         (md5 bs {:as-bytes nil}))
+;;     ([bs opts]
+;;      (if (:as-bytes opts)
+;;        (DigestUtils/md5 bs)
+;;        (DigestUtils/md5Hex bs))))
+  
+;;   InputStream
+;;   (md5 [in]
+;;     (with-open [^InputStream in ^InputStream in]
+;;       (if as-bytes
+;;         (DigestUtils/md5 ^InputStream in)
+;;         (DigestUtils/md5Hex ^InputStream in))))
+;;   File
+;;   (md5 [f]
+;;     (apply md5 (io/input-stream f) args))
+
+;;   nil
+;;   (md5 [& args]
+;;     nil)
+;;   )
+
 
 
 (defn sha512
