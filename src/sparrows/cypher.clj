@@ -44,51 +44,43 @@
 
   Input can be string, input-stream or byte-array.  
   Returns string, or a byte array if `as-bytes` is true."
-  (md5 [in])
-  (sha1 [this])
-  (sha256 [this])
-  (sha512 [this]))
+  (md5 [in] [in opts])
+  (sha1 [in] [in opts])
+  (sha256 [in] [in opts])
+  (sha512 [in] [in opts]))
 
-;; (extend-protocol Digestable
-;;   (Class/forName "[B")
-;;   (md5 ([bs]
-;;         (md5 bs {:as-bytes nil}))
-;;     ([bs opts]
-;;      (if (:as-bytes opts)
-;;        (DigestUtils/md5 bs)
-;;        (DigestUtils/md5Hex bs))))
-  
-;;   InputStream
-;;   (md5 [in]
-;;     (with-open [^InputStream in ^InputStream in]
-;;       (if as-bytes
-;;         (DigestUtils/md5 ^InputStream in)
-;;         (DigestUtils/md5Hex ^InputStream in))))
-;;   File
-;;   (md5 [f]
-;;     (apply md5 (io/input-stream f) args))
+(extend-protocol Digestable
+  (Class/forName "[B")
+  (md5
+      ([bs] (md5 bs nil))
+    ([bs opts]
+     (if (:as-bytes opts)
+       (DigestUtils/md5 bs)
+       (DigestUtils/md5Hex bs))))
+  InputStream
+  (md5
+    ([in]
+      (md5 in nil))
+    ([in {:keys [as-bytes]}]
+      (with-open [^InputStream in ^InputStream in]
+        (if as-bytes
+          (DigestUtils/md5 ^InputStream in)
+          (DigestUtils/md5Hex ^InputStream in)))))
+  File
+  (md5
+    ([f]
+      (md5 f nil))
+    ([f opt]
+      (md5 (io/input-stream f) opt)))
+  String
+  (md5
+    ([in]
+      (md5 in nil))
+    ([in {:keys [as-bytes]}]
+      (if as-bytes
+        (DigestUtils/md5 in)
+        (DigestUtils/md5Hex in)))))
 
-;;   nil
-;;   (md5 [& args]
-;;     nil)
-;;   )
-
-
-
-(defn sha512
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha512Hex in))
-
-(defn sha256
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha256Hex in))
-
-(defn sha1
-  "Input can be string, input-stream or byte-array"
-  [in]
-  (DigestUtils/sha1Hex in))
 
 (defn url-encode
   "URL encode input byte array as a utf8-encoded string, or if as-bytes? is true, as
