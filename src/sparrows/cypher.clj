@@ -7,8 +7,10 @@
     - 'www-form-urlencoded' encoding scheme: form-encode and form-decode
     - base64
     - aes (requires unlimited JCE extension for JVM, see http://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters/6481658#6481658"
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [clojure.string :as s])
   (:import [java.io ByteArrayInputStream ByteArrayOutputStream File InputStream]
+           [clojure.lang Reflector]
            java.security.SecureRandom
            [java.util.zip GZIPInputStream GZIPOutputStream]
            [javax.crypto Cipher SecretKeyFactory]
@@ -17,6 +19,8 @@
            org.apache.commons.codec.digest.DigestUtils
            org.apache.commons.codec.net.URLCodec
            third.AESCrypt))
+
+(set! *warn-on-reflection* nil)
 
 ; salt length
 (def SALT_LEN 20)
@@ -39,48 +43,25 @@
   ^bytes [^String str]
   (.getBytes str "utf8"))
 
-(defprotocol Digestable
-  "Wrapper for apache DigestUtils md5, sha1, sha256, sha512 functions.
+(defn digest-with
+  "Digest with the specified algorithm. If `as-bytes?` is true, returns a byte array intead of string.
+  Supported algorithms: md2, md5, sha1, sha256, sha512"
+  [alg in & {:keys [as-bytes?]}]
+  (let [alg (s/lower-case (name alg))
+        m (if as-bytes? alg (str alg "Hex"))
+        file? (isa? (class in) File)
+        in (if file? (io/input-stream in) in)
+        stream? (or file? (isa? (class in) InputStream))]
+    (if stream?
+      (with-open [in in]
+        (Reflector/invokeStaticMethod DigestUtils m (into-array [in])))
+      (Reflector/invokeStaticMethod DigestUtils m (into-array [in])))))
 
-  Input can be string, input-stream or byte-array.  
-  Returns string, or a byte array if `as-bytes` is true."
-  (md5 [in] [in opts])
-  (sha1 [in] [in opts])
-  (sha256 [in] [in opts])
-  (sha512 [in] [in opts]))
-
-(extend-protocol Digestable
-  (Class/forName "[B")
-  (md5
-      ([bs] (md5 bs nil))
-    ([bs opts]
-     (if (:as-bytes opts)
-       (DigestUtils/md5 bs)
-       (DigestUtils/md5Hex bs))))
-  InputStream
-  (md5
-    ([in]
-      (md5 in nil))
-    ([in {:keys [as-bytes]}]
-      (with-open [^InputStream in ^InputStream in]
-        (if as-bytes
-          (DigestUtils/md5 ^InputStream in)
-          (DigestUtils/md5Hex ^InputStream in)))))
-  File
-  (md5
-    ([f]
-      (md5 f nil))
-    ([f opt]
-      (md5 (io/input-stream f) opt)))
-  String
-  (md5
-    ([in]
-      (md5 in nil))
-    ([in {:keys [as-bytes]}]
-      (if as-bytes
-        (DigestUtils/md5 in)
-        (DigestUtils/md5Hex in)))))
-
+(defn md2 [& args] (apply digest-with :md2 args))
+(defn md5 [& args] (apply digest-with :md5 args))
+(defn sha1 [& args] (apply digest-with :sha1 args))
+(defn sha256 [& args] (apply digest-with :sha256 args))
+(defn sha512 [& args] (apply digest-with :sha512 args))
 
 (defn url-encode
   "URL encode input byte array as a utf8-encoded string, or if as-bytes? is true, as
@@ -153,8 +134,15 @@
 
 (extend InputStream
   Base64Codec
-  {:-base64-encode (fn [in options] (-base64-encode (slurp (io/reader in)) options))
-   :-base64-decode (fn [in options] (-base64-decode (slurp (io/reader in)) options))})
+  {:-base64-encode (fn [in options] (with-open [in in]
+                                      (-base64-encode (slurp (io/reader in)) options)))
+   :-base64-decode (fn [in options] (with-open [in in]
+                                      (-base64-decode (slurp (io/reader in)) options)))})
+
+(extend File
+  Base64Codec
+  {:-base64-encode (fn [in options] (-base64-encode (io/input-stream in) options))
+   :-base64-decode (fn [in options] (-base64-decode (io/input-stream in) options))})
 
 (extend nil
   Base64Codec
@@ -190,7 +178,9 @@
     (with-open [in (GZIPInputStream. ais)]
       (slurp (io/reader in)))))
 
-
+(def base64
+  "Base64 encode a string or byte array. Available options: :url-safe? :as-bytes?"
+  base64-encode)
 
 (defn digest
   [alg in]
@@ -311,8 +301,8 @@
 ;; Wraps AESCrypt class.
 
 (defn encrypt-aes
-  [^String plaintext ^String password]
   "Encrypt plaintext with the password"
+  [^String plaintext ^String password]
   (with-open [in  (ByteArrayInputStream. (.getBytes plaintext "utf-8"))
               out (ByteArrayOutputStream.)]
     (doto (AESCrypt. password)
