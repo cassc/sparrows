@@ -4,8 +4,8 @@
 (deftest cypher-test
   (testing "Testing cypher"
     (is (= "plaint text 中文"
-           (aes-decrypt
-            (aes-encrypt "plaint text 中文" "random-password")
+           (decrypt-aes
+            (encrypt-aes "plaint text 中文" "random-password")
             "random-password")))
     (is (= "plaint text 中文"
            (aes-decrypt

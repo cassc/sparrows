@@ -322,3 +322,21 @@
         (.decrypt size in out))
       (String.
        (.toByteArray out) "utf-8"))))
+
+(defn- ->bytes
+  [b]
+  (cond 
+    (= (class b) String) (get-bytes b)
+    (= (class b) (Class/forName "[B")) b))
+
+(defn slow=
+  "Slow equals compare. Takes string or byte array as arugments.
+
+  see https://crackstation.net/hashing-security.htm#javasourcecode"
+  [sa sb]
+  (let [sa (->bytes sa)
+        sb (->bytes sb)]
+    (zero?
+     (reduce #(bit-or % %2)
+             (bit-xor (count sa) (count sb))
+             (map #(bit-xor %1 %2) sa sb)))))
