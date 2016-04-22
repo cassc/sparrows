@@ -80,7 +80,7 @@
   When request-map is not provided, the provided options, i.e.,
   `params, body, query-params, form-params' will be merged into the
   default-client-options and used as the request map."
-  [{:keys [method url params body query-params form-params request-map content-type insecure? sslengine]}]
+  [{:keys [method url params body query-params form-params request-map content-type insecure? sslengine multipart]}]
   {:pre [method url]}
   (let [assoc-when (fn [m k v] (conj m (when v [k v])))
         m (case method
@@ -98,6 +98,7 @@
              (assoc :insecure? insecure?)
              (assoc-when :sslengine sslengine)
              (assoc-when :body body)
+             (assoc-when :multipart multipart)
              (assoc-when :form-params form-params)
              (assoc-when :query-params query-params))))))
 
