@@ -8,8 +8,7 @@
             [taoensso.timbre :as timbre])
   (:import [java.io BufferedReader StringReader]
            java.text.SimpleDateFormat
-           [java.util Date TimeZone UUID]
-           [net.htmlparser.jericho Source TextExtractor]))
+           [java.util Date TimeZone UUID]))
 
 (timbre/refer-timbre)
 
@@ -26,13 +25,6 @@
         (warn e (.getMessage e))
         (if call-back
           (apply call-back e args))))))
-
-(defn extract-text
-  "Given a string source, returns the extracted text content"
-  [^String s]
-  (let [source  (Source. s)]
-    (.toString (TextExtractor. source))))
-
 
 (defn zip-str
   "convenience function to parse xml string as clojure datastructure, first seen at nakkaya.com later in clj.zip src"
