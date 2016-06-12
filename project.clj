@@ -1,4 +1,4 @@
-(defproject org.clojars.august/sparrows "0.2.3-SNAPSHOT"
+(defproject org.clojars.august/sparrows "0.2.3"
   :description "A utility library providing encryption/decryption, io utils and more."
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
