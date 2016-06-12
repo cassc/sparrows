@@ -77,10 +77,12 @@
 (defn async-request
   "Send an async http-kit request.
 
-  When request-map is not provided, the provided options, i.e.,
-  `params, body, query-params, form-params' will be merged into the
-  default-client-options and used as the request map."
-  [{:keys [method url params body query-params form-params request-map content-type insecure? sslengine multipart]}]
+  When request-map is not provided, 
+
+  - the provided options, i.e.,`params, body, query-params, form-params` 
+  will be merged into the default-client-options and used as the request map.
+  - the provided `headers` will be merged into the default headers in `default-client-options`"
+  [{:keys [method url params body query-params form-params request-map content-type insecure? sslengine multipart headers]}]
   {:pre [method url]}
   (let [assoc-when (fn [m k v] (conj m (when v [k v])))
         m (case method
@@ -96,6 +98,7 @@
      (or request-map
          (-> default-client-options
              (assoc :insecure? insecure?)
+             (assoc-when :headers (merge (default-client-options :headers) headers))
              (assoc-when :sslengine sslengine)
              (assoc-when :body body)
              (assoc-when :multipart multipart)

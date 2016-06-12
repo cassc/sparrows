@@ -4,8 +4,7 @@
 
 (deftest a-test
   (testing "http"
-    (comment
-      (GET "http://www.hipda.com")
-)
-
-    ))
+    @(async-request {:url "https://192.168.0.72/v1/doc"
+                     :method :head
+                     :insecure? true
+                     :headers {"content-type" "application/nippy"}})))
