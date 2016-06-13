@@ -1,8 +1,9 @@
 (ns sparrows.time
   (:require [sparrows.misc :as misc])
-  (:import [java.time ZoneId Instant LocalDateTime ZonedDateTime]
+  (:import [java.time ZoneId Instant LocalDateTime ZonedDateTime LocalDate]
            [java.time.temporal WeekFields]
            [java.util Locale]
+           [java.sql Timestamp]
            [java.time.format DateTimeFormatter]))
 
 (def date-string-pattern "yyyy-MM-dd")
@@ -27,11 +28,17 @@
   "Convert string to epoch millis. 
 
   - If pattern does not contain timezone, offset must be provided.
-  - If pattern contains timezone info(Z/z/X), offset must be consistant with the offset sepcified in the input string `s`."
+  - If pattern contains timezone info(Z/z/X), offset must be consistant with the offset sepcified in the input string `s`.
+  - If no hour of day is specified, 0-clock is assumed."
   [s {:keys [pattern offset]}]
+  ;; TODO check for precondition
   (let [fmt (make-formatter {:pattern pattern :offset offset})
+        with-hour? (.contains pattern "H")
         zdt (if offset
-              (.atZone (LocalDateTime/parse s fmt) (zone-by-offset offset))
+              (let [local-time (if with-hour?
+                                 (LocalDateTime/parse s fmt)
+                                 (.atStartOfDay (LocalDate/parse s fmt)))]
+                (.atZone local-time (zone-by-offset offset)))
               (ZonedDateTime/parse s fmt))]
     (.. zdt toInstant toEpochMilli)))
 
@@ -87,7 +94,7 @@
         :or {zone bj-zone
              locale Locale/US
              week-start 1}}]
-   (let [instant (if ts (Instant/from ts) (now))
+   (let [instant (if ts (Instant/ofEpochMilli ts) (now))
          ldt     (LocalDateTime/ofInstant instant bj-zone)
          w-start (.with
                   ldt
@@ -99,3 +106,11 @@
                      toInstant
                      toEpochMilli)]
      millis)))
+
+(defn to-sql-time [ts]
+  (java.sql.Timestamp. ts))
+
+(defn from-sql-time [sql-date]
+  (.getTime sql-date))
+
+
