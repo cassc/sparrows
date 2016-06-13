@@ -95,7 +95,7 @@
              locale Locale/US
              week-start 1}}]
    (let [instant (if ts (Instant/ofEpochMilli ts) (now))
-         ldt     (LocalDateTime/ofInstant instant bj-zone)
+         ldt     (LocalDateTime/ofInstant instant zone)
          w-start (.with
                   ldt
                   (.dayOfWeek (WeekFields/of locale))
@@ -106,6 +106,31 @@
                      toInstant
                      toEpochMilli)]
      millis)))
+
+(defn start-of-day
+  "Calculate epoch millis at the start of the next day. If no `zone`
+  is provided, `bj-zone` is assumed."
+  ([]
+   (start-of-day nil))
+  ([ts]
+   (start-of-day ts nil))
+  ([ts {:keys [zone]
+        :or {zone bj-zone}}]
+   (let [instant (if ts (Instant/ofEpochMilli ts) (now))
+         ldt     (LocalDateTime/ofInstant instant zone)]
+     (.. ldt toLocalDate (atStartOfDay zone) toInstant toEpochMilli))))
+
+(defn start-of-next-day
+  "Calculate epoch millis at the start of the day"
+  ([]
+   (start-of-next-day nil))
+  ([ts]
+   (start-of-next-day ts nil))
+  ([ts {:keys [zone]
+        :or {zone bj-zone}}]
+   (let [instant (if ts (Instant/ofEpochMilli ts) (now))
+         ldt     (LocalDateTime/ofInstant (.plusMillis instant 86400000) zone)]
+     (.. ldt toLocalDate (atStartOfDay zone) toInstant toEpochMilli))))
 
 (defn to-sql-time [ts]
   (java.sql.Timestamp. ts))
