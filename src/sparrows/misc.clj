@@ -3,6 +3,7 @@
              [string :as s]
              [xml :as xml]
              [zip :as zip]]
+            [clojure.edn :as edn]
             [clojure.java.shell :refer [sh]]
             [sparrows.system :refer [command-exists?]]
             [taoensso.timbre :as timbre])
@@ -159,7 +160,7 @@
   (if (number? n)
     n
     (try
-      (let [r (read-string n)]
+      (let [r (edn/read-string n)]
         (if (number? r) r))
       (catch Exception e))))
 
