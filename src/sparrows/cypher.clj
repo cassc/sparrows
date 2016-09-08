@@ -16,6 +16,7 @@
            [javax.crypto Cipher SecretKeyFactory]
            [javax.crypto.spec IvParameterSpec PBEKeySpec SecretKeySpec]
            [org.apache.commons.codec.binary Base64 Hex]
+           [org.apache.commons.io IOUtils]
            org.apache.commons.codec.digest.DigestUtils
            org.apache.commons.codec.net.URLCodec
            third.AESCrypt))
@@ -135,9 +136,9 @@
 (extend InputStream
   Base64Codec
   {:-base64-encode (fn [in options] (with-open [in in]
-                                      (-base64-encode (slurp (io/reader in)) options)))
+                                      (-base64-encode (IOUtils/toByteArray (io/reader in)) options)))
    :-base64-decode (fn [in options] (with-open [in in]
-                                      (-base64-decode (slurp (io/reader in)) options)))})
+                                      (-base64-decode (IOUtils/toByteArray (io/reader in)) options)))})
 
 (extend File
   Base64Codec
