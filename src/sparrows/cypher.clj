@@ -136,9 +136,9 @@
 (extend InputStream
   Base64Codec
   {:-base64-encode (fn [in options] (with-open [in in]
-                                      (-base64-encode (IOUtils/toByteArray (io/reader in)) options)))
+                                      (-base64-encode (IOUtils/toByteArray in) options)))
    :-base64-decode (fn [in options] (with-open [in in]
-                                      (-base64-decode (IOUtils/toByteArray (io/reader in)) options)))})
+                                      (-base64-decode (IOUtils/toByteArray in) options)))})
 
 (extend File
   Base64Codec
