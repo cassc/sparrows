@@ -1,5 +1,6 @@
 (defproject org.clojars.august/sparrows "0.2.8"
   :description "A utility library providing encryption/decryption, io utils and more."
+  :url "http://www.eclipse.org/legal/epl-v10.html"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
