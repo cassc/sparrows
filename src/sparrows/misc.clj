@@ -6,7 +6,8 @@
             [clojure.edn :as edn]
             [clojure.java.shell :refer [sh]]
             [sparrows.system :refer [command-exists?]]
-            [taoensso.timbre :as timbre])
+            [taoensso.timbre :as timbre]
+            [com.rpl.specter :as spec])
   (:import [java.io BufferedReader StringReader]
            java.text.SimpleDateFormat
            [java.util Date TimeZone UUID]))
@@ -166,31 +167,29 @@
 
 (defn dissoc-nil-val
   "Remove all entries with nil val"
-  {:deprecated "0.2.1"}
   [m]
-  (loop [ks (keys m)
-         m m]
-    (if (seq ks)
-      (if-not (get m (first ks))
-        (recur (rest ks) (dissoc m (first ks)))
-        (recur (rest ks) m))
-      m)))
+  (spec/setval [spec/MAP-VALS nil?] spec/NONE m))
+
+(defn- remove-empty
+  ([v]
+   (remove-empty false v))
+  ([trim-string? v]
+   (or
+    (cond 
+      (string? v) (when-not (s/blank? v) (if trim-string? (s/trim v) v))
+      (or (sequential? v) (map? v)) (when (seq v) v)
+      :else v)
+    spec/NONE)))
 
 (defn dissoc-empty-val
   "Remove all entries with nil or empty val"
   [m]
-  (loop [ks (keys m)
-         m m]
-    (if (seq ks)
-      (let [v (get m (first ks))]
-        (if (cond
-              (string? v)          (lowercase-trim v)
-              (instance? Number v) v
-              (sequential? v)      (seq v)
-              :else                v)
-          (recur (rest ks) m)
-          (recur (rest ks) (dissoc m (first ks)))))
-      m)))
+  (spec/transform [spec/MAP-VALS] (partial remove-empty false) m))
+
+(defn dissoc-empty-val-and-trim
+  "Remove all entries with nil or empty val"
+  [m]
+  (spec/transform [spec/MAP-VALS] (partial remove-empty true) m))
 
 (defn uuid
   "Return uuid without hyphens"
